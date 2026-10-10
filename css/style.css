@@ -201,7 +201,7 @@ body {
 }
 
 .card-header {
-  background: var(--primary-red);
+  background: #D4736B;
   color: #fff;
   padding: 14px 18px;
   display: flex;
