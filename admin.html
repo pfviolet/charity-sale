@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>관리자 - 기부 바자회 예약 현황</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 관리자 로그인 -->
+  <div id="admin-login-screen">
+    <div class="container">
+      <div class="admin-login">
+        <h2>🔒 관리자 페이지</h2>
+        <input type="password" id="admin-pw" placeholder="비밀번호 입력"
+               onkeypress="if(event.key==='Enter') adminLogin()">
+        <button class="btn-primary" style="max-width:280px" onclick="adminLogin()">로그인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 관리자 대시보드 -->
+  <div id="admin-dashboard" class="hidden">
+    <div class="header">
+      <div class="header-inner">
+        <span class="header-title">📊 예약 관리 대시보드</span>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="admin-section">
+        <!-- 전체 통계 -->
+        <div class="stat-cards" id="stat-cards">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">총 예약 건수</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-participants">0</div>
+            <div class="stat-label">총 참여자 수</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-cancelled">0</div>
+            <div class="stat-label">취소 건수</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-remain">0</div>
+            <div class="stat-label">전체 잔여석</div>
+          </div>
+        </div>
+
+        <!-- 프로그램 탭 -->
+        <div class="admin-tabs" id="admin-tabs">
+          <button class="admin-tab active" data-tab="all" onclick="switchProgramTab('all')">전체</button>
+          <button class="admin-tab" data-tab="leather" onclick="switchProgramTab('leather')">가죽</button>
+          <button class="admin-tab" data-tab="hanji" onclick="switchProgramTab('hanji')">한지</button>
+          <button class="admin-tab" data-tab="science" onclick="switchProgramTab('science')">과학</button>
+          <button class="admin-tab" data-tab="slime" onclick="switchProgramTab('slime')">슬라임</button>
+        </div>
+
+        <!-- 시간대별 현황 (프로그램별 탭에서만) -->
+        <div id="slot-overview" class="hidden">
+          <div class="slot-grid" id="slot-grid"></div>
+        </div>
+
+        <!-- 예약 목록 테이블 -->
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>예약번호</th>
+                <th>프로그램</th>
+                <th>회차</th>
+                <th>신청자</th>
+                <th>연락처</th>
+                <th>참여자</th>
+                <th>인원</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="reservation-table"></tbody>
+          </table>
+        </div>
+
+        <p id="table-empty" class="empty-state hidden">
+          <span class="icon">📋</span><br>
+          예약 내역이 없습니다.
+        </p>
+
+        <!-- CSV 다운로드 -->
+        <button class="btn-secondary mt-20" onclick="downloadCSV()">
+          📥 예약 목록 CSV 다운로드
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // ---- 관리자 비밀번호 (배포 전 변경하세요) ----
+    const ADMIN_PASSWORD = 'bazaar2026';
+
+    let allReservations = [];
+    let currentTab = 'all';
+
+    // ---- 관리자 로그인 ----
+    function adminLogin() {
+      const pw = document.getElementById('admin-pw').value;
+      if (pw === ADMIN_PASSWORD) {
+        document.getElementById('admin-login-screen').classList.add('hidden');
+        document.getElementById('admin-dashboard').classList.remove('hidden');
+        loadReservations();
+      } else {
+        showToast('비밀번호가 올바르지 않습니다.');
+      }
+    }
+
+    // ---- 실시간 예약 데이터 로드 ----
+    function loadReservations() {
+      db.collection('reservations')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(snapshot => {
+          allReservations = [];
+          snapshot.forEach(doc => {
+            allReservations.push({ id: doc.id, ...doc.data() });
+          });
+          updateDashboard();
+        });
+    }
+
+    // ---- 대시보드 업데이트 ----
+    function updateDashboard() {
+      const confirmed = allReservations.filter(r => r.status === 'confirmed');
+      const cancelled = allReservations.filter(r => r.status === 'cancelled');
+
+      const totalParticipants = confirmed.reduce((sum, r) => sum + r.participantCount, 0);
+      const totalCapacity = Object.keys(PROGRAMS).length * TIME_SLOTS.length * MAX_CAPACITY;
+
+      document.getElementById('stat-total').textContent = confirmed.length;
+      document.getElementById('stat-participants').textContent = totalParticipants;
+      document.getElementById('stat-cancelled').textContent = cancelled.length;
+      document.getElementById('stat-remain').textContent = totalCapacity - totalParticipants;
+
+      renderTable();
+    }
+
+    // ---- 프로그램 탭 전환 ----
+    function switchProgramTab(tab) {
+      currentTab = tab;
+
+      document.querySelectorAll('.admin-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === tab);
+      });
+
+      const slotOverview = document.getElementById('slot-overview');
+      if (tab === 'all') {
+        slotOverview.classList.add('hidden');
+      } else {
+        slotOverview.classList.remove('hidden');
+        renderSlotOverview(tab);
+      }
+
+      renderTable();
+    }
+
+    // ---- 시간대별 현황 렌더링 ----
+    function renderSlotOverview(programId) {
+      const container = document.getElementById('slot-grid');
+      const confirmed = allReservations.filter(r => r.status === 'confirmed' && r.programId === programId);
+
+      container.innerHTML = '';
+      TIME_SLOTS.forEach(slot => {
+        const count = confirmed
+          .filter(r => r.timeSlot === slot.id)
+          .reduce((sum, r) => sum + r.participantCount, 0);
+        const pct = Math.round((count / MAX_CAPACITY) * 100);
+
+        let barClass = 'green';
+        if (pct >= 100) barClass = 'red';
+        else if (pct >= 70) barClass = 'yellow';
+
+        container.innerHTML += `
+          <div class="slot-stat">
+            <div class="slot-time-label">${slot.label}</div>
+            <div class="slot-count">${count} / ${MAX_CAPACITY}명</div>
+            <div class="slot-bar">
+              <div class="slot-bar-fill ${barClass}" style="width:${Math.min(pct, 100)}%"></div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // ---- 예약 테이블 렌더링 ----
+    function renderTable() {
+      const tbody = document.getElementById('reservation-table');
+      const emptyMsg = document.getElementById('table-empty');
+
+      let filtered = allReservations;
+      if (currentTab !== 'all') {
+        filtered = filtered.filter(r => r.programId === currentTab);
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+
+      emptyMsg.classList.add('hidden');
+      tbody.innerHTML = '';
+
+      filtered.forEach(r => {
+        const program = PROGRAMS[r.programId];
+        const slot = TIME_SLOTS.find(s => s.id === r.timeSlot);
+        const participants = r.participants.map(p => `${p.name}(${p.age})`).join(', ');
+        const statusClass = r.status === 'confirmed' ? 'status-confirmed' : 'status-cancelled';
+        const statusText = r.status === 'confirmed' ? '확인' : '취소';
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${r.bookingNumber}</strong></td>
+            <td>${program ? program.shortTitle : r.programId}</td>
+            <td>${slot ? slot.id + '회차 ' + slot.time : ''}</td>
+            <td>${r.applicantName}</td>
+            <td>${formatPhone(r.applicantPhone)}</td>
+            <td>${participants}</td>
+            <td>${r.participantCount}명</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          </tr>
+        `;
+      });
+    }
+
+    // ---- CSV 다운로드 ----
+    function downloadCSV() {
+      const confirmed = allReservations.filter(r => r.status === 'confirmed');
+      if (confirmed.length === 0) {
+        showToast('다운로드할 예약 데이터가 없습니다.');
+        return;
+      }
+
+      let csv = '﻿예약번호,프로그램,회차,시간,신청자,연락처,참여자,참여인원,상태\n';
+
+      allReservations.forEach(r => {
+        const program = PROGRAMS[r.programId];
+        const slot = TIME_SLOTS.find(s => s.id === r.timeSlot);
+        const participants = r.participants.map(p => `${p.name}(${p.age}세)`).join(' / ');
+        const status = r.status === 'confirmed' ? '확인' : '취소';
+
+        csv += `${r.bookingNumber},${program ? program.shortTitle : r.programId},${slot ? slot.id + '회차' : ''},${slot ? slot.time : ''},${r.applicantName},${formatPhone(r.applicantPhone)},"${participants}",${r.participantCount},${status}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `바자회_예약현황_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+    }
+  </script>
+</body>
+</html>

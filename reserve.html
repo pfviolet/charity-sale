@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>예약하기 - 기부 바자회</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner">
+      <button class="btn-back" onclick="location.href='programs.html'">←</button>
+      <span class="header-title" id="header-title">예약하기</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="reserve-section">
+      <!-- 프로그램 요약 -->
+      <div class="program-summary" id="program-summary">
+        <h2 id="summary-title"></h2>
+        <p id="summary-info"></p>
+      </div>
+
+      <!-- Step 1: 시간대 선택 -->
+      <div class="section-title"><span class="icon">🕐</span> 시간대 선택</div>
+      <div class="time-slots" id="time-slots">
+        <!-- JS에서 렌더링 -->
+      </div>
+
+      <!-- Step 2: 신청자 정보 -->
+      <div class="form-section">
+        <div class="section-title"><span class="icon">👤</span> 신청자 정보</div>
+
+        <div class="form-group">
+          <label>신청자 성함 <span class="required">*</span></label>
+          <input type="text" id="applicant-name" placeholder="신청자 성함을 입력하세요">
+        </div>
+
+        <div class="form-group">
+          <label>연락처 <span class="required">*</span></label>
+          <input type="tel" id="applicant-phone" placeholder="010-0000-0000"
+                 oninput="this.value = this.value.replace(/[^0-9-]/g, '')">
+        </div>
+      </div>
+
+      <!-- Step 3: 참여자 정보 -->
+      <div class="form-section">
+        <div class="section-title"><span class="icon">👨‍👩‍👧‍👦</span> 참여자 정보</div>
+
+        <div class="form-group">
+          <label>참여 인원 <span class="required">*</span></label>
+          <div class="counter-wrap">
+            <button class="counter-btn" id="btn-minus" onclick="changeCount(-1)">−</button>
+            <span class="counter-value" id="participant-count">1</span>
+            <button class="counter-btn" id="btn-plus" onclick="changeCount(1)">+</button>
+          </div>
+          <p class="counter-note" id="remain-note"></p>
+        </div>
+
+        <div class="participants-list" id="participants-list">
+          <!-- JS에서 렌더링 -->
+        </div>
+      </div>
+
+      <!-- 예약 버튼 -->
+      <button class="btn-primary mt-20" id="btn-submit" onclick="submitReservation()">
+        예약 신청하기
+      </button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // ---- 상태 ----
+    const programId = getParam('program');
+    const program = PROGRAMS[programId];
+    let selectedSlot = null;
+    let participantCount = 1;
+    let maxAvailable = MAX_CAPACITY;
+    let slotCounts = {};
+    let unsubscribe = null;
+
+    // 프로그램이 없으면 목록으로
+    if (!program) {
+      location.href = 'programs.html';
+    }
+
+    // ---- 초기화 ----
+    function init() {
+      // 헤더, 요약 정보 설정
+      document.getElementById('header-title').textContent = program.shortTitle + ' 예약';
+      document.getElementById('summary-title').textContent = program.emoji + ' ' + program.title;
+
+      const infoText = program.instructor
+        ? `${program.instructor} | ${program.duration} | ${program.ageRequirement}`
+        : `${program.duration} | ${program.ageRequirement}`;
+      document.getElementById('summary-info').textContent = infoText;
+
+      // OG 태그 동적 설정
+      document.title = program.shortTitle + ' 예약 - 기부 바자회';
+
+      // 시간대 렌더링
+      renderTimeSlots({});
+
+      // 참여자 입력 필드 렌더링
+      renderParticipants();
+
+      // 실시간 리스너
+      unsubscribe = watchSlotCounts(programId, (counts) => {
+        slotCounts = counts;
+        renderTimeSlots(counts);
+        updateMaxAvailable();
+      });
+    }
+
+    // ---- 시간대 슬롯 렌더링 ----
+    function renderTimeSlots(counts) {
+      const container = document.getElementById('time-slots');
+      container.innerHTML = '';
+
+      TIME_SLOTS.forEach(slot => {
+        const used = counts[slot.id] || 0;
+        const remain = MAX_CAPACITY - used;
+        const isFull = remain <= 0;
+        const isSelected = selectedSlot === slot.id;
+
+        let classes = 'time-slot';
+        if (isFull) classes += ' disabled';
+        if (isSelected && !isFull) classes += ' selected';
+
+        const remainText = isFull
+          ? '<span class="slot-remain full">마감</span>'
+          : `<span class="slot-remain available">잔여 ${remain}명</span>`;
+
+        container.innerHTML += `
+          <div class="${classes}" onclick="selectSlot(${slot.id}, ${isFull})" data-slot="${slot.id}">
+            <div class="slot-label">${slot.id}회차</div>
+            <div class="slot-time">${slot.time}</div>
+            ${remainText}
+          </div>
+        `;
+      });
+    }
+
+    // ---- 시간대 선택 ----
+    function selectSlot(slotId, isFull) {
+      if (isFull) return;
+      selectedSlot = slotId;
+      renderTimeSlots(slotCounts);
+      updateMaxAvailable();
+    }
+
+    // ---- 잔여석에 따른 최대 인원 업데이트 ----
+    function updateMaxAvailable() {
+      if (selectedSlot) {
+        const used = slotCounts[selectedSlot] || 0;
+        maxAvailable = MAX_CAPACITY - used;
+
+        if (participantCount > maxAvailable) {
+          participantCount = Math.max(1, maxAvailable);
+          document.getElementById('participant-count').textContent = participantCount;
+          renderParticipants();
+        }
+
+        document.getElementById('remain-note').textContent =
+          `선택한 시간대 잔여석: ${maxAvailable}명`;
+      }
+
+      // 버튼 상태 업데이트
+      document.getElementById('btn-minus').disabled = participantCount <= 1;
+      document.getElementById('btn-plus').disabled = participantCount >= maxAvailable;
+    }
+
+    // ---- 참여 인원 변경 ----
+    function changeCount(delta) {
+      const newCount = participantCount + delta;
+      if (newCount < 1 || newCount > maxAvailable) return;
+
+      participantCount = newCount;
+      document.getElementById('participant-count').textContent = participantCount;
+      renderParticipants();
+      updateMaxAvailable();
+    }
+
+    // ---- 참여자 입력 필드 렌더링 ----
+    function renderParticipants() {
+      const container = document.getElementById('participants-list');
+
+      // 기존 값 먼저 수집
+      const savedValues = [];
+      for (let i = 0; i < 10; i++) {
+        const nameEl = document.getElementById(`p-name-${i}`);
+        const ageEl = document.getElementById(`p-age-${i}`);
+        if (!nameEl) break;
+        savedValues.push({ name: nameEl.value, age: ageEl.value });
+      }
+
+      container.innerHTML = '';
+
+      for (let i = 0; i < participantCount; i++) {
+        const prevName = savedValues[i]?.name || '';
+        const prevAge = savedValues[i]?.age || '';
+
+        container.innerHTML += `
+          <div class="participant-entry">
+            <h4>참여자 ${i + 1}</h4>
+            <div class="fields">
+              <input type="text" id="p-name-${i}" placeholder="이름" value="${prevName}">
+              <input type="number" id="p-age-${i}" placeholder="나이" min="1" max="99" value="${prevAge}">
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // ---- 예약 제출 ----
+    async function submitReservation() {
+      // 유효성 검사
+      if (!selectedSlot) {
+        showToast('시간대를 선택해주세요.');
+        return;
+      }
+
+      const name = document.getElementById('applicant-name').value.trim();
+      const phone = document.getElementById('applicant-phone').value.trim();
+
+      if (!name) {
+        showToast('신청자 성함을 입력해주세요.');
+        return;
+      }
+
+      if (!isValidPhone(phone)) {
+        showToast('올바른 연락처를 입력해주세요.');
+        return;
+      }
+
+      // 참여자 정보 수집
+      const participants = [];
+      for (let i = 0; i < participantCount; i++) {
+        const pName = document.getElementById(`p-name-${i}`).value.trim();
+        const pAge = document.getElementById(`p-age-${i}`).value.trim();
+
+        if (!pName) {
+          showToast(`참여자 ${i + 1}의 이름을 입력해주세요.`);
+          return;
+        }
+        if (!pAge) {
+          showToast(`참여자 ${i + 1}의 나이를 입력해주세요.`);
+          return;
+        }
+
+        participants.push({ name: pName, age: parseInt(pAge) });
+      }
+
+      showLoading('예약 접수 중...');
+
+      try {
+        // 잔여석 재확인 (동시 접속 대비)
+        const currentCount = await getSlotCount(programId, selectedSlot);
+        if (currentCount + participantCount > MAX_CAPACITY) {
+          hideLoading();
+          showToast('죄송합니다. 해당 시간대가 마감되었습니다.');
+          return;
+        }
+
+        // 예약번호 생성
+        const bookingNumber = generateBookingNumber();
+
+        // Firestore에 저장
+        await db.collection('reservations').add({
+          bookingNumber: bookingNumber,
+          programId: programId,
+          timeSlot: selectedSlot,
+          applicantName: name,
+          applicantPhone: phone.replace(/\D/g, ''),
+          participants: participants,
+          participantCount: participantCount,
+          status: 'confirmed',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        hideLoading();
+
+        // 확인 페이지로 이동
+        const params = new URLSearchParams({
+          booking: bookingNumber,
+          program: programId,
+          slot: selectedSlot,
+          name: name,
+          count: participantCount
+        });
+        location.href = 'confirm.html?' + params.toString();
+
+      } catch (error) {
+        hideLoading();
+        console.error('예약 오류:', error);
+        showToast('예약 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
+    }
+
+    // ---- 페이지 로드 ----
+    init();
+  </script>
+</body>
+</html>

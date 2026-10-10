@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>예약 조회 - 기부 바자회</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner">
+      <button class="btn-back" onclick="location.href='index.html'">←</button>
+      <span class="header-title">예약 조회 / 취소</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="lookup-section">
+      <!-- 조회 방법 탭 -->
+      <div class="lookup-tabs">
+        <button class="lookup-tab active" id="tab-booking" onclick="switchTab('booking')">예약번호로 조회</button>
+        <button class="lookup-tab" id="tab-phone" onclick="switchTab('phone')">전화번호로 조회</button>
+      </div>
+
+      <!-- 예약번호 조회 -->
+      <div id="form-booking">
+        <div class="form-section">
+          <div class="form-group">
+            <label>예약번호</label>
+            <input type="text" id="input-booking" placeholder="예: B-A3K7"
+                   style="text-transform: uppercase;"
+                   oninput="this.value = this.value.toUpperCase()">
+          </div>
+          <button class="btn-primary" onclick="lookupByBooking()">조회하기</button>
+        </div>
+      </div>
+
+      <!-- 전화번호 조회 -->
+      <div id="form-phone" class="hidden">
+        <div class="form-section">
+          <div class="form-group">
+            <label>전화번호</label>
+            <input type="tel" id="input-phone" placeholder="010-0000-0000"
+                   oninput="this.value = this.value.replace(/[^0-9-]/g, '')">
+          </div>
+          <button class="btn-primary" onclick="lookupByPhone()">조회하기</button>
+        </div>
+      </div>
+
+      <!-- 조회 결과 -->
+      <div class="lookup-result" id="lookup-result"></div>
+    </div>
+  </div>
+
+  <div class="footer-links">
+    <a href="index.html">홈으로</a>
+    <a href="programs.html">프로그램 안내</a>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // ---- 탭 전환 ----
+    function switchTab(tab) {
+      document.getElementById('tab-booking').classList.toggle('active', tab === 'booking');
+      document.getElementById('tab-phone').classList.toggle('active', tab === 'phone');
+      document.getElementById('form-booking').classList.toggle('hidden', tab !== 'booking');
+      document.getElementById('form-phone').classList.toggle('hidden', tab !== 'phone');
+      document.getElementById('lookup-result').innerHTML = '';
+    }
+
+    // ---- 예약번호로 조회 ----
+    async function lookupByBooking() {
+      const bookingNum = document.getElementById('input-booking').value.trim().toUpperCase();
+      if (!bookingNum) {
+        showToast('예약번호를 입력해주세요.');
+        return;
+      }
+
+      showLoading('조회 중...');
+
+      try {
+        const snapshot = await db.collection('reservations')
+          .where('bookingNumber', '==', bookingNum)
+          .get();
+
+        hideLoading();
+
+        if (snapshot.empty) {
+          document.getElementById('lookup-result').innerHTML = `
+            <div class="empty-state">
+              <div class="icon">🔍</div>
+              <p>해당 예약번호로 조회된 예약이 없습니다.<br>예약번호를 다시 확인해주세요.</p>
+            </div>
+          `;
+          return;
+        }
+
+        renderResults(snapshot);
+      } catch (error) {
+        hideLoading();
+        showToast('조회 중 오류가 발생했습니다.');
+        console.error(error);
+      }
+    }
+
+    // ---- 전화번호로 조회 ----
+    async function lookupByPhone() {
+      const phone = document.getElementById('input-phone').value.trim();
+      if (!isValidPhone(phone)) {
+        showToast('올바른 전화번호를 입력해주세요.');
+        return;
+      }
+
+      const phoneNums = phone.replace(/\D/g, '');
+      showLoading('조회 중...');
+
+      try {
+        const snapshot = await db.collection('reservations')
+          .where('applicantPhone', '==', phoneNums)
+          .get();
+
+        hideLoading();
+
+        if (snapshot.empty) {
+          document.getElementById('lookup-result').innerHTML = `
+            <div class="empty-state">
+              <div class="icon">🔍</div>
+              <p>해당 전화번호로 조회된 예약이 없습니다.<br>전화번호를 다시 확인해주세요.</p>
+            </div>
+          `;
+          return;
+        }
+
+        renderResults(snapshot);
+      } catch (error) {
+        hideLoading();
+        showToast('조회 중 오류가 발생했습니다.');
+        console.error(error);
+      }
+    }
+
+    // ---- 조회 결과 렌더링 ----
+    function renderResults(snapshot) {
+      const container = document.getElementById('lookup-result');
+      container.innerHTML = '';
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const program = PROGRAMS[data.programId];
+        const slot = TIME_SLOTS.find(s => s.id === data.timeSlot);
+        const isCancelled = data.status === 'cancelled';
+
+        const statusBadge = isCancelled
+          ? '<span class="status-badge status-cancelled">취소됨</span>'
+          : '<span class="status-badge status-confirmed">예약 확인</span>';
+
+        const cancelBtn = isCancelled ? '' : `
+          <button class="btn-cancel-reservation" onclick="cancelReservation('${doc.id}', '${data.bookingNumber}')">
+            예약 취소
+          </button>
+        `;
+
+        const participantNames = data.participants.map(p => `${p.name}(${p.age}세)`).join(', ');
+
+        container.innerHTML += `
+          <div class="reservation-card">
+            ${statusBadge}
+            <h3>${program ? program.emoji + ' ' + program.shortTitle : data.programId}</h3>
+            <div class="info-line">📋 예약번호: <strong>${data.bookingNumber}</strong></div>
+            <div class="info-line">📅 ${EVENT_INFO.dateShort} ${slot ? slot.time : ''} (${slot ? slot.id + '회차' : ''})</div>
+            <div class="info-line">👤 신청자: ${data.applicantName} (${formatPhone(data.applicantPhone)})</div>
+            <div class="info-line">👨‍👩‍👧‍👦 참여자: ${participantNames}</div>
+            <div class="info-line">👥 참여 인원: ${data.participantCount}명</div>
+            ${cancelBtn}
+          </div>
+        `;
+      });
+    }
+
+    // ---- 예약 취소 ----
+    function cancelReservation(docId, bookingNumber) {
+      showModal(
+        '예약을 취소하시겠습니까?',
+        `예약번호 ${bookingNumber}을(를) 취소합니다. 취소 후에는 되돌릴 수 없습니다.`,
+        async () => {
+          showLoading('취소 처리 중...');
+          try {
+            await db.collection('reservations').doc(docId).update({
+              status: 'cancelled',
+              cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            hideLoading();
+            showToast('예약이 취소되었습니다.');
+
+            // 결과 새로고침
+            const bookingInput = document.getElementById('input-booking').value.trim();
+            const phoneInput = document.getElementById('input-phone').value.trim();
+            if (bookingInput) lookupByBooking();
+            else if (phoneInput) lookupByPhone();
+          } catch (error) {
+            hideLoading();
+            showToast('취소 처리 중 오류가 발생했습니다.');
+            console.error(error);
+          }
+        },
+        '취소하기',
+        '돌아가기'
+      );
+    }
+  </script>
+</body>
+</html>
