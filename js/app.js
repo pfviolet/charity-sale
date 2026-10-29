@@ -217,7 +217,7 @@ function renderProgramCard(program) {
   const instructorHtml = program.instructor
     ? `<div class="card-info-row">
         <span class="label">강사</span>
-        <span>${program.instructor} (${program.instructorInfo})</span>
+        <span>${program.instructor}</span>
       </div>`
     : '';
 
