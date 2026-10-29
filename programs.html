@@ -29,6 +29,14 @@
     </div>
   </div>
 
+  <!-- 상세보기 모달 -->
+  <div class="detail-modal-overlay" id="detail-modal" onclick="closeDetail(event)">
+    <div class="detail-modal-content">
+      <button class="detail-modal-close" onclick="closeDetail(event)">✕</button>
+      <img id="detail-image" src="" alt="프로그램 상세 소개">
+    </div>
+  </div>
+
   <div class="footer-links">
     <a href="index.html">홈으로</a>
     <a href="lookup.html">예약 조회</a>
@@ -45,6 +53,21 @@
     Object.values(PROGRAMS).forEach(program => {
       cardsContainer.innerHTML += renderProgramCard(program);
     });
+
+    // 상세보기 모달
+    function openDetail(programId) {
+      const program = PROGRAMS[programId];
+      if (!program || !program.detailImage) return;
+      document.getElementById('detail-image').src = program.detailImage;
+      document.getElementById('detail-modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetail(e) {
+      if (e && e.target.tagName === 'IMG') return;
+      document.getElementById('detail-modal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
   </script>
 </body>
 </html>
