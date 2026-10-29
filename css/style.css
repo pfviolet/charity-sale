@@ -324,6 +324,79 @@ body {
   color: var(--text-muted);
 }
 
+.btn-detail {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--bg-cream);
+  color: var(--text-brown);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-detail:hover {
+  background: var(--border-color);
+}
+
+/* 상세보기 모달 */
+.detail-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.detail-modal-overlay.active {
+  display: flex;
+}
+
+.detail-modal-content {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.detail-modal-content img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius);
+}
+
+.detail-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.detail-modal-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 /* Time Slots */
 .section-title {
   font-size: 16px;
