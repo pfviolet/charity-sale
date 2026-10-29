@@ -26,29 +26,32 @@ const PROGRAMS = {
     duration: '40분',
     ageRequirement: '초등학생 이상, 성인 가능',
     description: '전문 가죽 장인과 함께 나만의 가죽 소품을 만들어보세요. 가죽 재단부터 바느질까지 직접 체험하며 세상에 하나뿐인 작품을 완성합니다.',
-    emoji: '👜'
+    emoji: '👜',
+    detailImage: 'img/detail-leather.png'
   },
   hanji: {
     id: 'hanji',
     title: '임희석 교수와 함께하는 한지공예',
     shortTitle: '한지공예',
-    instructor: '임희석 교수',
-    instructorInfo: '어울림 미술치료 센터장, 상명대학교 겸임교수',
+    instructor: '임희석 센터장',
+    instructorInfo: '어울림미술치료센터장, 한국열린사이버대 특임교수, 한지작가, 아동미술심리사',
     duration: '40분',
     ageRequirement: '6세 이상, 성인 가능',
     description: '전통 한지를 활용한 아름다운 공예 작품을 만들어보세요. 한지의 따뜻한 질감과 색감을 느끼며 나만의 작품을 완성합니다.',
-    emoji: '🎨'
+    emoji: '🎨',
+    detailImage: 'img/detail-hanji.png'
   },
   science: {
     id: 'science',
     title: '공학박사와 함께하는 과학실험',
     shortTitle: '과학실험',
     instructor: '최훈 박사',
-    instructorInfo: '건축기술사',
+    instructorInfo: '토목구조기술사, 한국전력기술 부장',
     duration: '30분',
     ageRequirement: '초등학생 이상',
     description: '공학박사와 함께 신나는 과학실험을 체험해보세요. 재미있는 실험을 통해 과학 원리를 배우며 탐구하는 즐거움을 느낄 수 있습니다.',
-    emoji: '🔬'
+    emoji: '🔬',
+    detailImage: 'img/detail-science.png'
   },
   slime: {
     id: 'slime',
