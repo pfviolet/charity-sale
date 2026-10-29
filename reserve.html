@@ -22,17 +22,6 @@
       <div class="program-summary" id="program-summary">
         <h2 id="summary-title"></h2>
         <p id="summary-info"></p>
-        <button class="btn-detail" id="btn-detail" onclick="openDetail()" style="display:none;">
-          강사 · 프로그램 상세보기
-        </button>
-      </div>
-
-      <!-- 상세보기 모달 -->
-      <div class="detail-modal-overlay" id="detail-modal" onclick="closeDetail(event)">
-        <div class="detail-modal-content">
-          <button class="detail-modal-close" onclick="closeDetail(event)">✕</button>
-          <img id="detail-image" src="" alt="프로그램 상세 소개">
-        </div>
       </div>
 
       <!-- Step 1: 시간대 선택 -->
@@ -113,12 +102,6 @@
         ? `${program.instructor} | ${program.duration} | ${program.ageRequirement}`
         : `${program.duration} | ${program.ageRequirement}`;
       document.getElementById('summary-info').textContent = infoText;
-
-      // 상세보기 버튼 (이미지가 있는 프로그램만)
-      if (program.detailImage) {
-        document.getElementById('btn-detail').style.display = 'block';
-        document.getElementById('detail-image').src = program.detailImage;
-      }
 
       // OG 태그 동적 설정
       document.title = program.shortTitle + ' 예약 - 기부 바자회';
@@ -320,22 +303,6 @@
         console.error('예약 오류:', error);
         showToast('예약 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       }
-    }
-
-    // ---- 상세보기 모달 ----
-    function openDetail() {
-      document.getElementById('detail-modal').classList.add('active');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeDetail(e) {
-      if (e) {
-        // 이미지 클릭은 닫지 않음
-        if (e.target.tagName === 'IMG') return;
-        e.stopPropagation();
-      }
-      document.getElementById('detail-modal').classList.remove('active');
-      document.body.style.overflow = '';
     }
 
     // ---- 페이지 로드 ----
