@@ -236,6 +236,7 @@ function renderProgramCard(program) {
             <span>${program.ageRequirement}</span>
           </div>
         </div>
+        ${program.detailImage ? `<button class="btn-detail" onclick="openDetail('${program.id}')">강사 · 프로그램 상세보기</button>` : ''}
         <div class="card-actions">
           <a href="reserve.html?program=${program.id}" class="btn-reserve">예약하기</a>
           <button class="btn-kakao" onclick="shareKakao('${program.id}')">
