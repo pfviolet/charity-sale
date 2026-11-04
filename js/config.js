@@ -19,14 +19,14 @@ const db = firebase.firestore();
 const PROGRAMS = {
   leather: {
     id: 'leather',
-    title: '밴어배너 대표와 함께하는 가죽공예',
-    shortTitle: '가죽공예',
+    title: '밴어배너 대표와 함께하는 업사이클링',
+    shortTitle: '업사이클링',
     instructor: '이반석 대표',
-    instructorInfo: '국민대학교 금속공예 전공, 밴어배너 대표',
+    instructorInfo: '자원순환 브랜드 (주)밴어배너 대표',
     duration: '40분',
     ageRequirement: '초등학생 이상, 성인 가능',
-    description: '전문 가죽 장인과 함께 나만의 가죽 소품을 만들어보세요. 가죽 재단부터 바느질까지 직접 체험하며 세상에 하나뿐인 작품을 완성합니다.',
-    emoji: '👜',
+    description: '버려지는 현수막을 새로운 작품으로! 현수막 소재를 활용해 키링 등 나만의 작은 소품을 직접 만들어보세요. 업사이클링의 가치를 배우며 세상에 하나뿐인 작품을 완성합니다.',
+    emoji: '♻️',
     detailImage: 'img/detail-leather.png'
   },
   hanji: {
