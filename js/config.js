@@ -62,7 +62,8 @@ const PROGRAMS = {
     duration: '30분',
     ageRequirement: '나이 제한 없음',
     description: '형형색색 나만의 슬라임을 직접 만들어보세요! 반짝이, 색소를 넣어 세상에 하나뿐인 나만의 슬라임을 완성합니다.',
-    emoji: '🧪'
+    emoji: '🧪',
+    closed: true
   }
 };
 
