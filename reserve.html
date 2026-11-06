@@ -127,7 +127,7 @@
 
       TIME_SLOTS.forEach(slot => {
         const used = counts[slot.id] || 0;
-        const remain = MAX_CAPACITY - used;
+        const remain = program.closed ? 0 : MAX_CAPACITY - used;
         const isFull = remain <= 0;
         const isSelected = selectedSlot === slot.id;
 
